@@ -47,50 +47,74 @@ ht* ht_create() {
 
 void free_ht(ht* table) {
     for(size_t i = 0; i < table->capacity; i++) {
-        if(table->entries[i].key == NULL)
+        if(table->entries[i].key == NULL) {
+            continue;
+        }
+        free(table->entries[i].key);
+        table->entries[i].key = NULL;
+        if(table->entries[i].bucket == NULL) {
+            continue;
+        }
         free(table->entries[i].bucket);
+        table->entries[i].bucket = NULL;
     }
     free(table->entries);
+    table->entries = NULL;
     free(table);
+    table = NULL;
+    return;
 }
-
+/*
+ * TODO: Change to new allocate a new table, but only new entries. This will hopefully fix the pointer changing
+ *
+ */
 ht* ht_realloc(ht* table) {
-    ht* new_table = (ht*) calloc(1, sizeof(ht));
-    if (new_table == NULL) {
+    ht_Entry* entries = (ht_Entry*) calloc(table->capacity * 2, sizeof(ht_Entry));
+    if (entries == NULL) {
         return NULL;
     }
-    new_table->used = table->used;
-    new_table->capacity = table->capacity * 2;
-    new_table->entries = (ht_Entry*) calloc(table->capacity * 2, sizeof(ht_Entry));
-    if (new_table->entries == NULL) {
-        return NULL;
-    }
-
+    table->capacity *= 2;
     // Insert old values
     for(size_t i = 0; i < table->used; ++i) {
         ht_Entry entry = table->entries[i];
-        uint64_t hash = hash_key(entry.key) % new_table->capacity;
-        if (new_table->entries[hash].key == NULL) {
-            memcpy((void*)new_table->entries[hash].key, table->entries[i].key, strlen(table->entries[i].key));
-            memcpy((void*)new_table->entries[hash].bucket, table->entries[i].bucket, strlen(table->entries[i].bucket));
+        uint64_t hash = hash_key(entry.key) % table->capacity;
+        size_t entry_key_length = strlen(table->entries[i].key) + 1;
+        size_t entry_bucket_length = strlen(table->entries[i].bucket) + 1;
+        if (entries[hash].key == NULL) {
+            entries[hash].key = (char*) calloc(entry_key_length, sizeof(char));
+            entries[hash].bucket = (char*) calloc(entry_bucket_length, sizeof(char));
+            strncpy(entries[hash].key, table->entries[i].key, entry_key_length);
+            strncpy(entries[hash].bucket, table->entries[i].bucket, entry_bucket_length);
         }
         else {
+            //TODO: Make sure we are accessing into the allocated array and not outside it
+            // If we double the capacity, we should be able to move the old array to the were the new entries start
+            // meaning we don't need to check for bounds for this issue.
+            // But it is possible for multiple hashes to map to the end of the the array. Wrap around?
             hash += 1; // Might save us from one loop
-            while(new_table->entries[hash].key != NULL) {
+            while((entries[hash].key != NULL) && (hash < table->capacity)) {
                 hash += 1;
             }
-            memcpy((void*)new_table->entries[hash].key, table->entries[i].key, strlen(table->entries[i].key));
-            memcpy((void*)new_table->entries[hash].bucket, table->entries[i].bucket, strlen(table->entries[i].bucket));
+            entries[hash].key = (char*) calloc(entry_key_length, sizeof(char));
+            entries[hash].bucket = (char*) calloc(entry_bucket_length, sizeof(char));
+            strncpy(entries[hash].key, table->entries[i].key, entry_key_length);
+            strncpy(entries[hash].bucket, table->entries[i].bucket, entry_bucket_length);
         }
-        new_table->used += 1;
     }
-    free_ht(table);
-    return new_table;
+    for(size_t i = 0; i < table->used; ++i) {
+        free(table->entries[i].key);
+        free(table->entries[i].bucket);
+        table->entries[i].key = NULL;
+        table->entries[i].bucket = NULL;
+    }
+    free(table->entries);
+    table->entries = entries;
+    return table;
 }
 
 
 
-/* returns a void* pointer to the
+/* returns a copy of the value with the key
  *
  */
 const char* ht_get(ht* table, const char* key) {
@@ -109,15 +133,20 @@ const char* ht_get(ht* table, const char* key) {
         }
         entry = &table->entries[hash];
     }
-    return entry->bucket;
+    const char* rv = calloc(strlen(entry->bucket) + 1, sizeof(char));
+    strcpy(rv, entry->bucket);
+    return rv;
 }
 
-ht_Entry* ht_insert(ht* table, const char* key, void* object) {
+ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
     if(table == NULL) {
         return NULL;
     }
     if(table->capacity <= table->used) {
-        table = ht_realloc(table);
+        ht* temp = ht_realloc(table);
+        table->entries = temp->entries;
+        table->capacity = temp->capacity;
+        table->used = temp->used;
         if (table == NULL) {
             return NULL;
         }
