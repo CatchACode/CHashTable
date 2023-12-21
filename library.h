@@ -165,6 +165,26 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
     return &table->entries[hash];
 }
 
+ht_Entry* ht_delete(ht* table, const char* key) {
+    ht_Entry* entry = calloc(1, sizeof(ht_Entry));
+    uint64_t hash = hash_key(key) % table->capacity;
+    ht_Entry* found = &table->entries[hash];
+    if(found == NULL) {
+        return NULL;
+    }
+    size_t sizeKey = strlen(found->key) + 1;
+    size_t sizeBucket = strlen(found->bucket) + 1;
+    entry->key = calloc(sizeKey, sizeof(char));
+    entry->bucket = calloc(sizeBucket, sizeof(char));
+    entry->key = strncpy(entry->key, found->key, sizeKey);
+    entry->bucket = strncpy(entry->bucket, found->bucket, sizeBucket);
+    free(found->key);
+    free(found->bucket);
+    found->key = NULL;
+    found->bucket = NULL;
+    return entry;
+}
+
 
 
 #endif //HASHTABLE_LIBRARY_H
