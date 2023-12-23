@@ -105,7 +105,7 @@ ht* ht_realloc(ht* table) {
     for(size_t i = 0; i < table->capacity; ++i) {
         ht_Entry entry = table->entries[i];
         if(entry.key != NULL) {
-            uint64_t starting_hash = hash_key(entry.key, strlen(entry.key) + 1) % (table->capacity * 2);
+            uint64_t starting_hash = hash_key(entry.key, entry.keySize) % (table->capacity * 2);
             uint64_t hash = starting_hash;
             if (new_entries[hash].key != NULL) { // Need to find next empty slot
                 do {
@@ -116,10 +116,10 @@ ht* ht_realloc(ht* table) {
                 } while (new_entries[hash].key != NULL &&
                          hash != starting_hash); // Use do while loop to detect looping in ht
             }
-            new_entries[hash].key = calloc(strlen(entry.key) + 1, sizeof(char));
-            new_entries[hash].bucket = calloc(strlen(entry.bucket) + 1, sizeof(char));
-            memcpy(new_entries[hash].key, entry.key, strlen(entry.key) + 1);
-            memcpy(new_entries[hash].bucket, entry.bucket, strlen(entry.bucket) + 1);
+            new_entries[hash].key = malloc(entry.keySize);
+            new_entries[hash].bucket = malloc(entry.bucketSize);
+            memcpy(new_entries[hash].key, entry.key, entry.keySize);
+            memcpy(new_entries[hash].bucket, entry.bucket, entry.bucketSize);
         }
     }
     for(size_t i = 0; i < table->capacity; ++i) { // free table
@@ -187,7 +187,7 @@ ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t
             return NULL;
         }
     }
-    uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
+    uint64_t hash = hash_key(key, keySize) % table->capacity;
     while(table->entries[hash].key != NULL) { // don't need a loop check, as capacity > used, therefore there must be a free slot before we reach the starting hash
         if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize))) {
             // keySizes matches => Keys might match => might need to update entry instead of inserting
