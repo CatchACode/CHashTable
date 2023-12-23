@@ -12,8 +12,10 @@
 #define STARTINGSIZE    1
 
 typedef struct ht_Entry {
-    const char* key;
-    char* bucket;
+    const void* key;
+    size_t keySize;
+    void* bucket;
+    size_t bucketSize;
 } ht_Entry;
 
 typedef struct ht{
@@ -35,7 +37,7 @@ static uint64_t hash_key(const unsigned char* buffer, size_t bufferSize) {
 
 __attribute__((unused)) static uint64_t test_hash(const char* buf, size_t size, bool set, uint64_t settee) {
     if (set == true) {
-        return hash_key(buf);
+        return hash_key(buf, size);
     } else {
         return settee;
     }
@@ -103,7 +105,7 @@ ht* ht_realloc(ht* table) {
     for(size_t i = 0; i < table->capacity; ++i) {
         ht_Entry entry = table->entries[i];
         if(entry.key != NULL) {
-            uint64_t starting_hash = hash_key(entry.key) % (table->capacity * 2);
+            uint64_t starting_hash = hash_key(entry.key, strlen(entry.key) + 1) % (table->capacity * 2);
             uint64_t hash = starting_hash;
             if (new_entries[hash].key != NULL) { // Need to find next empty slot
                 do {
@@ -144,7 +146,7 @@ ht* ht_realloc(ht* table) {
 
 // returns a copy of the value with the key, null if not found
 const char* ht_cget(ht* table, const char* key) {
-    uint64_t hash = hash_key(key) % table->capacity;
+    uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
 
     while(table->entries[hash].key != NULL) {
         if(strcmp(table->entries[hash].key, key) == 0) {
@@ -164,7 +166,7 @@ const char* ht_cget(ht* table, const char* key) {
 
 // returns a pointer to the bucket assign to key, null if not found
 const char* ht_get(ht* table, const char* key) {
-    uint64_t hash = hash_key(key) % table->capacity;
+    uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
 
     while(table->entries[hash].key != NULL) {
         if(strcmp(table->entries[hash].key, key)) {
@@ -185,7 +187,7 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
             return NULL;
         }
     }
-    uint64_t hash = hash_key(key) % table->capacity;
+    uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
     while(table->entries[hash].key != NULL) { // don't need a loop check, as capacity > used, therefore there must be a free slot before we reach the starting hash
         if(strcmp(table->entries[hash].key, key) == 0) { // Found a matching key => Update pair
             free(table->entries->bucket);
@@ -209,7 +211,7 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
 
 // deletes an entry by key, returns NULL if entry with key not found
 const char* ht_delete(ht* table, const char* key) {
-    uint64_t starting_hash = hash_key(key) % table->capacity;
+    uint64_t starting_hash = hash_key(key, strlen(key) + 1) % table->capacity;
     uint64_t hash = starting_hash;
     do {
         if (table->entries[hash].key == NULL) { // needed as do while always executes the do once
