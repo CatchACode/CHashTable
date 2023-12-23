@@ -13,14 +13,15 @@ int main() {
     srand((unsigned int) time(NULL));
     ht* table = ht_create();
 
-
     pair_t pairs[SIZE];
-    generate_pairs(&pairs, SIZE, 128, 128);
+    generate_random_pairs(pairs, SIZE, 16, 16);
 
-    for(int i = 0; i <= SIZE; ++i) {
-        ht_insert(table, pairs[i].key, pairs[i].value);
+    for(int i = 0; i < SIZE; ++i) {
+        ht_insert(table, pairs[i].key, pairs[i].value, pairs[i].keySize, pairs[i].valueSize);
     }
-
+    ht_free(table);
+    free_pairs(pairs, SIZE);
+    exit(1);
     for(int i = 0; i <= SIZE; ++i) {
         char* test = ht_cget(table, pairs[i].key);
         if(strcmp(pairs[i].value, test) == 0) {
@@ -30,7 +31,7 @@ int main() {
         }
         free(test);
     }
-    ht_delete(table, "key0");
+    ht_delete(table, pairs[0].key, pairs[0].keySize);
 
 
     ht_free(table);
