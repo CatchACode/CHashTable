@@ -103,35 +103,29 @@ ht* ht_realloc(ht* table) {
     // Insert old values
     for(size_t i = 0; i < table->capacity; ++i) {
         ht_Entry entry = table->entries[i];
-        if(entry.key == NULL) { // no entry in slot
-            continue;
-        }
-        uint64_t hash = hash_key(entry.key) % (table->capacity * 2);
-        size_t entry_key_length = strlen(entry.key) + 1;
-        size_t entry_bucket_length = strlen(entry.bucket) + 1;
-
-        while(new_entries[hash].key != NULL) {
-            hash += 1;
-            if (hash == table->capacity) { // Reached end of table without finding a spot for separate chaining
-                for(uint64_t j = 0; j < table->capacity * 2; ++j) { // free allocated new entries
-                    ht_entry_free(&new_entries[j]);
-                }
-                free(new_entries);
-                table->capacity *= 2;
-                return ht_realloc(table); // as table->entries have not been modified we can double the capacity and call realloc again
+        if(entry.key != NULL) {
+            uint64_t starting_hash = hash_key(entry.key) % (table->capacity * 2);
+            uint64_t hash = starting_hash;
+            if (new_entries[hash].key != NULL) { // Need to find next empty slot
+                do {
+                    hash += 1;
+                    if (hash >= (table->capacity * 2)) {
+                        hash = 0;
+                    }
+                } while (new_entries[hash].key != NULL &&
+                         hash != starting_hash); // Use do while loop to detect looping in ht
             }
+            new_entries[hash].key = calloc(strlen(entry.key) + 1, sizeof(char));
+            new_entries[hash].bucket = calloc(strlen(entry.bucket) + 1, sizeof(char));
+            memcpy(new_entries[hash].key, entry.key, strlen(entry.key) + 1);
+            memcpy(new_entries[hash].bucket, entry.bucket, strlen(entry.bucket) + 1);
         }
-        new_entries[hash].key = calloc(entry_key_length, sizeof(char));
-        new_entries[hash].bucket = (char*) calloc(entry_bucket_length, sizeof(char));
-        strncpy(new_entries[hash].key, table->entries[i].key, entry_key_length);
-        strncpy(new_entries[hash].bucket, table->entries[i].bucket, entry_bucket_length);
     }
-
-    for(size_t i = 0; i < table->capacity; ++i) { //
+    for(size_t i = 0; i < table->capacity; ++i) { // free table
         if(table->entries[i].key != NULL) {
             free(table->entries[i].key);
         }
-        if(table->entries[i].bucket != NULL) {
+        if(table->entries[i].bucket != NULL) { // Should not happen separately from key == NULL
             free(table->entries[i].bucket);
         }
         table->entries[i].key = NULL;
@@ -151,16 +145,14 @@ ht* ht_realloc(ht* table) {
 
 
 
-/* returns a copy of the value with the key
- *
- */
-const char* ht_get(ht* table, const char* key) {
+// returns a copy of the value with the key, null if not found
+const char* ht_cget(ht* table, const char* key) {
     uint64_t hash = hash_key(key) % table->capacity;
 
     while(table->entries[hash].key != NULL) {
         if(strcmp(table->entries[hash].key, key) == 0) {
             //Found entry
-            const char* rv = calloc(strlen(table->entries[hash].bucket), sizeof(char));
+            const char* rv = calloc(strlen(table->entries[hash].bucket) + 1, sizeof(char));
             return rv;
         }
         hash += 1;
@@ -172,10 +164,19 @@ const char* ht_get(ht* table, const char* key) {
 
 }
 
+// returns a pointer to the bucket assign to key, null if not found
+const char* ht_get(ht* table, const char* key) {
+    uint64_t hash = hash_key(key) % table->capacity;
 
+    while(table->entries[hash].key != NULL) {
+        if(strcmp(table->entries[hash].key, key)) {
+            return table->entries->bucket;
+        }
+    }
+}
 
 ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
-    if(table == NULL) {
+    if((table == NULL) || (key == NULL )) {
         return NULL;
     }
     if(table->capacity <= table->used) {
@@ -184,13 +185,11 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
             return NULL;
         }
     }
-
     uint64_t hash = hash_key(key) % table->capacity;
-    while(table->entries[hash].key != NULL) {
+    while(table->entries[hash].key != NULL) { // don't need a loop check, as capacity > used, therefore there must be a free slot before we reach the starting hash
         hash += 1;
-        if(hash>= table->capacity) { // Realloc and hope hash does not collide again
-            table = ht_realloc(table);
-            hash = hash_key(key) % table->capacity;
+        if(hash >= table->capacity) {
+            hash = 0;
         }
     }
     table->entries[hash].key = (char*) calloc(strlen(key) + 1,sizeof(char));
