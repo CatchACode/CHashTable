@@ -118,6 +118,8 @@ ht* ht_realloc(ht* table) {
             }
             new_entries[hash].key = malloc(entry.keySize);
             new_entries[hash].bucket = malloc(entry.bucketSize);
+            new_entries[hash].keySize = entry.keySize;
+            new_entries[hash].bucketSize = entry.bucketSize;
             memcpy(new_entries[hash].key, entry.key, entry.keySize);
             memcpy(new_entries[hash].bucket, entry.bucket, entry.bucketSize);
         }
@@ -145,14 +147,14 @@ ht* ht_realloc(ht* table) {
 }
 
 // returns a copy of the value with the key, null if not found
-const char* ht_cget(ht* table, const char* key) {
-    uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
+void* ht_cget(ht* table, const void* key, size_t keySize) {
+    uint64_t hash = hash_key(key, keySize) % table->capacity;
 
     while(table->entries[hash].key != NULL) {
-        if(strcmp(table->entries[hash].key, key) == 0) {
+        if((table->entries[hash].keySize == keySize) && memcpy(table->entries[hash].key, key, keySize)) {
             //Found entry
-            void* rv = calloc(strlen(table->entries[hash].bucket) + 1, sizeof(char));
-            memcpy(rv, table->entries[hash].bucket, strlen(table->entries[hash].bucket) + 1);
+            void* rv = malloc(table->entries[hash].bucketSize);
+            memcpy(rv, table->entries[hash].bucket, table->entries[hash].bucketSize);
             return rv;
         }
         hash += 1;
@@ -165,8 +167,8 @@ const char* ht_cget(ht* table, const char* key) {
 }
 
 // returns a pointer to the bucket assign to key, null if not found
-const char* ht_get(ht* table, const char* key) {
-    uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
+const char* ht_get(ht* table, const void* key, size_t keySize) {
+    uint64_t hash = hash_key(key, keySize) % table->capacity;
 
     while(table->entries[hash].key != NULL) {
         if(strcmp(table->entries[hash].key, key)) {
@@ -193,6 +195,7 @@ ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t
             // keySizes matches => Keys might match => might need to update entry instead of inserting
             free(table->entries[hash].bucket);
             table->entries[hash].bucket = malloc(objectSize);
+            table->entries[hash].bucketSize = objectSize;
             memcpy(table->entries[hash].bucket, object, objectSize);
             return &table->entries[hash];
         }
@@ -203,6 +206,8 @@ ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t
     }
     table->entries[hash].key = malloc(keySize);
     table->entries[hash].bucket = malloc(objectSize);
+    table->entries[hash].keySize = keySize;
+    table->entries[hash].bucketSize = objectSize;
     memcpy(table->entries[hash].key, key, keySize);
     memcpy(table->entries[hash].bucket, object, objectSize);
     table->used += 1;
