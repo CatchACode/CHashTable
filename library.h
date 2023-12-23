@@ -12,7 +12,7 @@
 #define STARTINGSIZE    1
 
 typedef struct ht_Entry {
-    const void* key;
+    void* key;
     size_t keySize;
     void* bucket;
     size_t bucketSize;
@@ -25,7 +25,7 @@ typedef struct ht{
 } ht;
 
 
-static uint64_t hash_key(const unsigned char* buffer, size_t bufferSize) {
+static uint64_t hash_key(const void* buffer, size_t bufferSize) {
     uint64_t hash = FNVOFFSETBASIS;
     for (const char* p = buffer; p != buffer + bufferSize; p++) {
         hash ^= (uint64_t)(unsigned char)(*p);
@@ -151,7 +151,7 @@ const char* ht_cget(ht* table, const char* key) {
     while(table->entries[hash].key != NULL) {
         if(strcmp(table->entries[hash].key, key) == 0) {
             //Found entry
-            const char* rv = calloc(strlen(table->entries[hash].bucket) + 1, sizeof(char));
+            void* rv = calloc(strlen(table->entries[hash].bucket) + 1, sizeof(char));
             memcpy(rv, table->entries[hash].bucket, strlen(table->entries[hash].bucket) + 1);
             return rv;
         }
@@ -177,7 +177,7 @@ const char* ht_get(ht* table, const char* key) {
 /* Inserts a key-value pair into the table. If the key already exists, the value is updated. Returns NULL on error
  *
  */
-ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
+ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t keySize, const size_t objectSize) {
     if((table == NULL) || (key == NULL )) {
         return NULL;
     }
@@ -189,21 +189,22 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
     }
     uint64_t hash = hash_key(key, strlen(key) + 1) % table->capacity;
     while(table->entries[hash].key != NULL) { // don't need a loop check, as capacity > used, therefore there must be a free slot before we reach the starting hash
-        if(strcmp(table->entries[hash].key, key) == 0) { // Found a matching key => Update pair
-            free(table->entries->bucket);
-            table->entries[hash].bucket = (char*) calloc(strlen(object) + 1, sizeof(char));
-            memcpy(table->entries[hash].bucket, object, strlen(object) + 1);
+        if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize))) {
+            // keySizes matches => Keys might match => might need to update entry instead of inserting
+            free(table->entries[hash].bucket);
+            table->entries[hash].bucket = malloc(objectSize);
+            memcpy(table->entries[hash].bucket, object, objectSize);
             return &table->entries[hash];
         }
         hash += 1;
-        if(hash >= table->capacity) {
+        if(hash >= table->capacity) { // Wrap around
             hash = 0;
         }
     }
-    table->entries[hash].key = (char*) calloc(strlen(key) + 1,sizeof(char));
-    table->entries[hash].bucket = (char*) calloc(strlen(object) + 1, sizeof(char));
-    table->entries[hash].key = strcpy((char*)table->entries[hash].key, key);
-    table->entries[hash].bucket = strcpy((char*)table->entries[hash].bucket, object);
+    table->entries[hash].key = malloc(keySize);
+    table->entries[hash].bucket = malloc(objectSize);
+    memcpy(table->entries[hash].key, key, keySize);
+    memcpy(table->entries[hash].bucket, object, objectSize);
     table->used += 1;
 
     return &table->entries[hash];
