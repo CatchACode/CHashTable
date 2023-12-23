@@ -143,8 +143,6 @@ ht* ht_realloc(ht* table) {
     return table;
 }
 
-
-
 // returns a copy of the value with the key, null if not found
 const char* ht_cget(ht* table, const char* key) {
     uint64_t hash = hash_key(key) % table->capacity;
