@@ -42,7 +42,7 @@ __attribute__((unused)) static uint64_t test_hash(const char* buf, size_t size, 
 }
 
 
-
+// frees all data in an entry, but not the entry itself
 void ht_entry_free(ht_Entry* entry) {
     if(entry == NULL) {
         return;
@@ -53,7 +53,6 @@ void ht_entry_free(ht_Entry* entry) {
     if(entry->bucket != NULL) {
         free(entry->bucket);
     }
-    free(entry);
     return;
 }
 
@@ -173,7 +172,9 @@ const char* ht_get(ht* table, const char* key) {
         }
     }
 }
-
+/* Inserts a key-value pair into the table. If the key already exists, the value is updated. Returns NULL on error
+ *
+ */
 ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
     if((table == NULL) || (key == NULL )) {
         return NULL;
@@ -186,6 +187,12 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
     }
     uint64_t hash = hash_key(key) % table->capacity;
     while(table->entries[hash].key != NULL) { // don't need a loop check, as capacity > used, therefore there must be a free slot before we reach the starting hash
+        if(strcmp(table->entries[hash].key, key) == 0) { // Found a matching key => Update pair
+            free(table->entries->bucket);
+            table->entries[hash].bucket = (char*) calloc(strlen(object) + 1, sizeof(char));
+            memcpy(table->entries[hash].bucket, object, strlen(object) + 1);
+            return &table->entries[hash];
+        }
         hash += 1;
         if(hash >= table->capacity) {
             hash = 0;
@@ -200,21 +207,27 @@ ht_Entry* ht_insert(ht* table, const char* key, const char* object) {
     return &table->entries[hash];
 }
 
+// deletes an entry by key, returns NULL if entry with key not found
+const char* ht_delete(ht* table, const char* key) {
+    uint64_t starting_hash = hash_key(key) % table->capacity;
+    uint64_t hash = starting_hash;
+    do {
+        if (table->entries[hash].key == NULL) { // needed as do while always executes the do once
+            return NULL;
+        }
+        if(strcmp(table->entries[hash].key, key) == 0) {
+            const char* rv = calloc(strlen(table->entries[hash].bucket + 1), sizeof(char));
+            memcpy(rv, table->entries[hash].bucket, strlen(table->entries[hash].bucket) + 1);
+            ht_entry_free(&table->entries[hash]);
+            return rv;
+        }
+        hash += 1;
+        if(hash >= table->capacity) {
+            hash = 0;
+        }
+    } while(table->entries[hash].key != NULL && hash != starting_hash);
 
-__attribute__((unused)) const char* ht_delete(ht* table, const char* key) {
-    uint64_t hash = hash_key(key) % table->capacity;
-    ht_Entry* found = &table->entries[hash];
-    if(found == NULL) {
-        return NULL;
-    }
-    size_t sizeBucket = strlen(found->bucket) + 1;
-    const char* bucket = calloc(sizeBucket, sizeof(char));
-    bucket = strncpy(bucket, found->bucket, sizeBucket);
-    free(found->key);
-    free(found->bucket);
-    found->key = NULL;
-    found->bucket = NULL;
-    return bucket;
+    return NULL;
 }
 
 
