@@ -211,16 +211,16 @@ ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t
 }
 
 // deletes an entry by key, returns NULL if entry with key not found
-const char* ht_delete(ht* table, const char* key) {
-    uint64_t starting_hash = hash_key(key, strlen(key) + 1) % table->capacity;
+const char* ht_delete(ht* table, const char* key, size_t keySize) {
+    uint64_t starting_hash = hash_key(key, keySize) % table->capacity;
     uint64_t hash = starting_hash;
     do {
         if (table->entries[hash].key == NULL) { // needed as do while always executes the do once
             return NULL;
         }
-        if(strcmp(table->entries[hash].key, key) == 0) {
-            const char* rv = calloc(strlen(table->entries[hash].bucket + 1), sizeof(char));
-            memcpy(rv, table->entries[hash].bucket, strlen(table->entries[hash].bucket) + 1);
+        if((table->entries[hash].keySize == keySize) && memcmp(table->entries[hash].key, key, keySize)) {
+            const char* rv = malloc(table->entries[hash].bucketSize);
+            memcpy(rv, table->entries[hash].bucket, table->entries[hash].bucketSize);
             ht_entry_free(&table->entries[hash]);
             return rv;
         }
