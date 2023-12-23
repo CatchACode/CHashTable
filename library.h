@@ -153,6 +153,7 @@ const char* ht_cget(ht* table, const char* key) {
         if(strcmp(table->entries[hash].key, key) == 0) {
             //Found entry
             const char* rv = calloc(strlen(table->entries[hash].bucket) + 1, sizeof(char));
+            memcpy(rv, table->entries[hash].bucket, strlen(table->entries[hash].bucket) + 1);
             return rv;
         }
         hash += 1;
