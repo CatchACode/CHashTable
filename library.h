@@ -23,9 +23,9 @@ typedef struct ht{
 } ht;
 
 
-static uint64_t hash_key(const char* key) {
+static uint64_t hash_key(const unsigned char* buffer, size_t bufferSize) {
     uint64_t hash = FNVOFFSETBASIS;
-    for (const char* p = key; *p; p++) {
+    for (const char* p = buffer; p != buffer + bufferSize; p++) {
         hash ^= (uint64_t)(unsigned char)(*p);
         hash *= FNVPRIME;
     }
