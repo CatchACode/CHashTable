@@ -51,9 +51,13 @@ void ht_entry_free(ht_Entry* entry) {
     }
     if(entry->key != NULL) {
         free(entry->key);
+        entry->key = NULL;
+        entry->keySize = 0;
     }
     if(entry->bucket != NULL) {
         free(entry->bucket);
+        entry->bucket = NULL;
+        entry->bucketSize = 0;
     }
     return;
 }
@@ -74,16 +78,7 @@ ht* ht_create() {
 
 void ht_free(ht* table) {
     for(size_t i = 0; i < table->capacity; i++) {
-        if(table->entries[i].key == NULL) {
-            continue;
-        }
-        free(table->entries[i].key);
-        table->entries[i].key = NULL;
-        if(table->entries[i].bucket == NULL) {
-            continue;
-        }
-        free(table->entries[i].bucket);
-        table->entries[i].bucket = NULL;
+        ht_entry_free(&table->entries[i]);
     }
     free(table->entries);
     table->entries = NULL;
@@ -215,8 +210,8 @@ ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t
     return &table->entries[hash];
 }
 
-// deletes an entry by key, returns NULL if entry with key not found
-const char* ht_delete(ht* table, const char* key, size_t keySize) {
+// deletes an entry by key, returns a copy of the value or NULL if not found
+char* ht_cdelete(ht* table, const char* key, size_t keySize) {
     uint64_t starting_hash = hash_key(key, keySize) % table->capacity;
     uint64_t hash = starting_hash;
     do {
@@ -237,7 +232,26 @@ const char* ht_delete(ht* table, const char* key, size_t keySize) {
 
     return NULL;
 }
+// deletes an entry
+void ht_delete(ht* table, unsigned char* key, size_t keySize) {
+    uint64_t starting_hash = hash_key(key, keySize) % table->capacity;
+    uint64_t hash = starting_hash;
+    do {
+        if(table->entries[hash].key == NULL) {
+            return;
+        }
+        if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize) == 0)) {
+            ht_entry_free(&table->entries[hash]);
+            return;
+        }
+        hash += 1;
+        if(hash >= table->capacity) {
+            hash = 0;
+        }
+    } while((table->entries[hash].key != NULL) && (hash != starting_hash));
 
+    return;
+}
 
 
 #endif //HASHTABLE_LIBRARY_H
