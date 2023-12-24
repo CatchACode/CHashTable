@@ -1,5 +1,5 @@
-#ifndef HASHTABLE_LIBRARY_H
-#define HASHTABLE_LIBRARY_H
+#ifndef HASHTABLE_HASHTABLE_H
+#define HASHTABLE_HASHTABLE_H
 
 #include <stdlib.h>
 #include <string.h>
@@ -254,4 +254,4 @@ void ht_delete(ht* table, unsigned char* key, size_t keySize) {
 }
 
 
-#endif //HASHTABLE_LIBRARY_H
+#endif //HASHTABLE_HASHTABLE_H

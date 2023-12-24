@@ -1,4 +1,4 @@
-#include "library.h"
+#include "hashtable.h"
 #include "testing.h"
 
 #include <stdio.h>
@@ -15,7 +15,7 @@ int main() {
 
 
     pair_t pairs[SIZE];
-    generate_iterative_pairs(&pairs, SIZE);
+    generate_random_pairs(&pairs, SIZE, 128, 128);
 
     for(int i = 0; i < SIZE; ++i) {
         ht_insert(table, pairs[i].key, pairs[i].value, pairs[i].keySize, pairs[i].valueSize);
@@ -41,11 +41,7 @@ int main() {
         }
         free(test);
     }
-    ht_free(table);
-    free_pairs(pairs, SIZE);
-    exit(1);
     ht_delete(table, pairs[0].key, pairs[0].keySize);
-
 
     ht_free(table);
     free_pairs(&pairs, SIZE);
