@@ -151,7 +151,7 @@ void* ht_cget(ht* table, const void* key, size_t keySize) {
     uint64_t hash = hash_key(key, keySize) % table->capacity;
 
     while(table->entries[hash].key != NULL) {
-        if((table->entries[hash].keySize == keySize) && memcpy(table->entries[hash].key, key, keySize)) {
+        if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize) == 0)) {
             //Found entry
             void* rv = malloc(table->entries[hash].bucketSize);
             memcpy(rv, table->entries[hash].bucket, table->entries[hash].bucketSize);
@@ -191,7 +191,7 @@ ht_Entry* ht_insert(ht* table, const void* key, const void* object, const size_t
     }
     uint64_t hash = hash_key(key, keySize) % table->capacity;
     while(table->entries[hash].key != NULL) { // don't need a loop check, as capacity > used, therefore there must be a free slot before we reach the starting hash
-        if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize))) {
+        if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize) == 0)) {
             // keySizes matches => Keys might match => might need to update entry instead of inserting
             free(table->entries[hash].bucket);
             table->entries[hash].bucket = malloc(objectSize);
@@ -223,7 +223,7 @@ const char* ht_delete(ht* table, const char* key, size_t keySize) {
         if (table->entries[hash].key == NULL) { // needed as do while always executes the do once
             return NULL;
         }
-        if((table->entries[hash].keySize == keySize) && memcmp(table->entries[hash].key, key, keySize)) {
+        if((table->entries[hash].keySize == keySize) && (memcmp(table->entries[hash].key, key, keySize) == 0)) {
             const char* rv = malloc(table->entries[hash].bucketSize);
             memcpy(rv, table->entries[hash].bucket, table->entries[hash].bucketSize);
             ht_entry_free(&table->entries[hash]);
